@@ -43,9 +43,23 @@ module.exports = (server) => {
       console.log(username, "logged in and saved to MongoDB");
     });
 
-    socket.on("send_message", ({ to, message }) => {
+    socket.on("send_message", async ({ to, message }) => {
       const targetSocket = users[to];
 
+      // Save message to MongoDB
+      try {
+        const db = await getDb();
+        await db.collection("messages").insertOne({
+          from: socket.username,
+          to,
+          message,
+          sentAt: new Date(),
+        });
+      } catch (error) {
+        console.error("Failed to save message:", error);
+      }
+
+      // Deliver in real-time if recipient is online
       if (targetSocket) {
         io.to(targetSocket).emit("receive_message", {
           from: socket.username,
