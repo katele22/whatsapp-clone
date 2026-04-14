@@ -23,18 +23,13 @@ module.exports = (server) => {
     console.log("User connected:", socket.id);
 
     socket.on("login", async (username) => {
-      const trimmedUsername = String(username || "").trim();
-
-      if (!trimmedUsername) {
-        return;
-      }
 
       const db = await getDb();
       await db.collection("users").updateOne(
-        { username: trimmedUsername },
+        { username: username },
         {
           $set: {
-            username: trimmedUsername,
+            username: username,
             socketId: socket.id,
             isOnline: true,
             lastSeenAt: new Date(),
@@ -43,9 +38,9 @@ module.exports = (server) => {
         { upsert: true }
       );
 
-      users[trimmedUsername] = socket.id;
-      socket.username = trimmedUsername;
-      console.log(trimmedUsername, "logged in and saved to MongoDB");
+      users[username] = socket.id;
+      socket.username = username;
+      console.log(username, "logged in and saved to MongoDB");
     });
 
     socket.on("send_message", ({ to, message }) => {
