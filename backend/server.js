@@ -23,10 +23,10 @@ app.get("/api/users", async (req, res) => {
   const db = await getDb();
   const users = await db
     .collection("users")
-    .find({}, { projection: { _id: 0, username: 1 } })
+    .find({}, { projection: { _id: 0 } })
     .toArray();
 
-  res.json(users.map((user) => user.username));
+  res.json(users);
 });
 
 // send message via API (not real-time, just example)
