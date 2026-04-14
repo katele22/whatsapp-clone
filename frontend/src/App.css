@@ -1,0 +1,16 @@
+.container {
+  font-family: Arial;
+  padding: 20px;
+}
+
+.messages {
+  border: 1px solid #ccc;
+  height: 200px;
+  overflow-y: scroll;
+  margin: 10px 0;
+  padding: 10px;
+}
+
+input {
+  margin: 5px;
+}
