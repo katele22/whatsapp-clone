@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { io } from 'socket.io-client'
 import './App.css'
 
-const socket = io('http://localhost:3000')
+const socket = io()
 
 function App() {
   const [username, setUsername] = useState('')
@@ -25,10 +25,20 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  function login() {
+  async function login() {
     if (!username.trim()) return alert('Enter username')
-    socket.emit("login",  username );
+    socket.emit('login', username.trim())
     setLoggedin(true)
+
+    // Load message history from DB
+    const res = await fetch(`/api/messages/inbox/${username.trim()}`)
+    const history = await res.json()
+    const formatted = history.map((msg) =>
+      msg.from === username.trim()
+        ? `You -> ${msg.to}: ${msg.message}`
+        : `${msg.from}: ${msg.message}`
+    )
+    setMessages(formatted)
   }
 
   function sendMessage() {

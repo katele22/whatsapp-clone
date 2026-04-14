@@ -29,9 +29,23 @@ app.get("/api/users", async (req, res) => {
   res.json(users);
 });
 
-// send message via API (not real-time, just example)
-app.post("/api/message", (req, res) => {
-  res.json({ status: "Message received (not sent via socket)" });
+
+// get all messages involving a user (inbox)
+// http://localhost:3000/api/messages/inbox/alice
+app.get("/api/messages/inbox/:username", async (req, res) => {
+  const { username } = req.params;
+
+  const db = await getDb();
+  const messages = await db
+    .collection("messages")
+    .find(
+      { $or: [{ from: username }, { to: username }] },
+      { projection: { _id: 0 } }
+    )
+    .sort({ sentAt: 1 })
+    .toArray();
+
+  res.json(messages);
 });
 
 
