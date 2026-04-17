@@ -8,12 +8,25 @@ function App() {
   const [mode, setMode] = useState('login') // 'login' | 'register'
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [token, setToken] = useState(null)
   const [loggedin, setLoggedin] = useState(false)
   const [to, setTo] = useState('')
   const [messageInput, setMessageInput] = useState('')
   const [messages, setMessages] = useState([])
   const messagesEndRef = useRef(null)
+
+  // On page refresh: check if the cookie is still valid
+  useEffect(() => {
+    fetch('/api/me', { credentials: 'include' })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.username) {
+          setUsername(data.username)
+          socket.emit('login', data.username)
+          setLoggedin(true)
+          loadInbox(data.username)
+        }
+      })
+  }, [])
 
   useEffect(() => {
     socket.on('receive_message', (data) => {
@@ -28,11 +41,23 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  async function loadInbox(user) {
+    const inboxRes = await fetch(`/api/messages/inbox/${user}`, { credentials: 'include' })
+    const history = await inboxRes.json()
+    const formatted = history.map((msg) =>
+      msg.from === user
+        ? `You -> ${msg.to}: ${msg.message}`
+        : `${msg.from}: ${msg.message}`
+    )
+    setMessages(formatted)
+  }
+
   async function register() {
     if (!username.trim() || !password.trim()) return alert('Enter username and password')
     const res = await fetch('/api/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ username: username.trim(), password }),
     })
     const data = await res.json()
@@ -46,29 +71,24 @@ function App() {
     const res = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', // tells browser to accept & store the cookie
       body: JSON.stringify({ username: username.trim(), password }),
     })
     const data = await res.json()
     if (!res.ok) return alert(data.error || 'Login failed')
 
-    const jwt = data.token
-    setToken(jwt)
-
-    // Tell socket server who we are
-    socket.emit('login', username.trim())
+    // No token in JS — it's in the HTTP-only cookie now
+    socket.emit('login', data.username)
     setLoggedin(true)
+    await loadInbox(data.username)
+  }
 
-    // Load message history using the JWT
-    const inboxRes = await fetch(`/api/messages/inbox/${username.trim()}`, {
-      headers: { Authorization: `Bearer ${jwt}` },
-    })
-    const history = await inboxRes.json()
-    const formatted = history.map((msg) =>
-      msg.from === username.trim()
-        ? `You -> ${msg.to}: ${msg.message}`
-        : `${msg.from}: ${msg.message}`
-    )
-    setMessages(formatted)
+  async function logout() {
+    await fetch('/api/logout', { method: 'POST', credentials: 'include' })
+    setLoggedin(false)
+    setUsername('')
+    setPassword('')
+    setMessages([])
   }
 
   function sendMessage() {
@@ -108,7 +128,7 @@ function App() {
 
   return (
     <div className="container">
-      <h2>Simple Chat, I am {username}</h2>
+      <h2>Simple Chat, I am {username} <button onClick={logout}>Logout</button></h2>
       <input
         value={to}
         onChange={(e) => setTo(e.target.value)}

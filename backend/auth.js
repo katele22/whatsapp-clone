@@ -2,11 +2,10 @@ const jwt = require("jsonwebtoken");
 
 const JWT_SECRET = process.env.JWT_SECRET || "changeme-set-JWT_SECRET-in-env";
 
-// Middleware: verifies the Bearer token in Authorization header
+// Middleware: verifies the JWT stored in the HTTP-only cookie "token"
 // Attaches the decoded payload to req.user on success
 function authenticateToken(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1]; // "Bearer <token>"
+  const token = req.cookies && req.cookies.token;
 
   if (!token) {
     return res.status(401).json({ error: "No token provided" });

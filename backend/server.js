@@ -5,6 +5,7 @@
 const express = require("express");
 const http = require("http");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const path = require("path");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -12,9 +13,10 @@ const { getDb } = require("./mongo");
 const { authenticateToken, JWT_SECRET } = require("./auth");
 //👉 Create an express app
 const app = express();
-//👉 Allow cross-origin requests (CORS)
-app.use(cors());
-// Parse JSON request bodies
+//👉 Allow cross-origin requests from the frontend, with credentials (cookies)
+app.use(cors({ origin: "http://localhost:5173", credentials: true }));
+// Parse cookies and JSON request bodies
+app.use(cookieParser());
 app.use(express.json());
 // serve frontend files (production build)
 app.use(express.static(path.join(__dirname, "../frontend/dist")));
@@ -61,7 +63,27 @@ app.post("/api/login", async (req, res) => {
   }
 
   const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "24h" });
-  res.json({ token });
+
+  // Set as HTTP-only cookie — JS cannot read this
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production", // HTTPS only in prod
+    sameSite: "strict",
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours in ms
+  });
+
+  res.json({ username });
+});
+
+// POST /api/logout — clears the cookie
+app.post("/api/logout", (req, res) => {
+  res.clearCookie("token", { httpOnly: true, sameSite: "strict" });
+  res.json({ message: "Logged out" });
+});
+
+// GET /api/me — lets the frontend check if the cookie is still valid on page refresh
+app.get("/api/me", authenticateToken, (req, res) => {
+  res.json({ username: req.user.username });
 });
 
 // 🔒 Protected: returns only the logged-in user's own record
